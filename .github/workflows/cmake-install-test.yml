@@ -166,11 +166,9 @@ jobs:
             CMAKE_PLATFORM_ARGS="$CMAKE_PLATFORM_ARGS -DANDROID=ON"
           elif [[ "${{ matrix.config.ios }}" == "true" ]]; then
             # iOS configuration using ios-cmake toolchain (as per README)
-            echo "iOS configuration"
-            pwd
-            ls -al third-party/deps/src 
-            echo "CMAKE_PLATFORM_ARGS: $CMAKE_PLATFORM_ARGS"
-            echo "CMAKE_ARGS: ${{ matrix.config.cmake_args }}"
+            echo "ios build is need to download ios-cmake, so we need to deploy deps"
+            python3 deploy_deps.py
+            ls -al third-party/deps/src
             CMAKE_PLATFORM_ARGS="-DCMAKE_TOOLCHAIN_FILE=third-party/deps/src/ios-cmake/ios.toolchain.cmake"
             CMAKE_PLATFORM_ARGS="$CMAKE_PLATFORM_ARGS -DDEPLOYMENT_TARGET=${{ matrix.config.ios_deployment_target }}"
             CMAKE_PLATFORM_ARGS="$CMAKE_PLATFORM_ARGS -DPLATFORM=OS64"
