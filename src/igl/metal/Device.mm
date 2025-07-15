@@ -39,7 +39,7 @@ Device::Device(id<MTLDevice> device) :
 Device::~Device() = default;
 
 std::shared_ptr<ICommandQueue> Device::createCommandQueue(const CommandQueueDesc& /*desc*/,
-                                                          Result* outResult) {
+                                                          Result* outResult) noexcept {
   id<MTLCommandQueue> metalObject = [device_ newCommandQueue];
   auto resource =
       std::make_shared<CommandQueue>(*this, metalObject, bufferSyncManager_, deviceStatistics_);
@@ -83,8 +83,9 @@ std::unique_ptr<IBuffer> Device::createBuffer(const BufferDesc& desc,
   return resource;
 }
 
-std::unique_ptr<IBuffer> Device::createRingBuffer(const BufferDesc& desc,
-                                                  Result* outResult) const noexcept {
+std::unique_ptr<IBuffer> Device::createRingBuffer(
+    const BufferDesc& desc,
+    Result* outResult) const noexcept { // NOLINT(bugprone-exception-escape)
   const MTLStorageMode storage = toMTLStorageMode(desc.storage);
   const MTLResourceOptions options = MTLResourceOptionCPUCacheModeDefault | storage;
 
@@ -130,8 +131,9 @@ std::shared_ptr<ISamplerState> Device::createSamplerState(const SamplerStateDesc
   return platformDevice_.createSamplerState(desc, outResult);
 }
 
-std::shared_ptr<ITexture> Device::createTexture(const TextureDesc& desc,
-                                                Result* outResult) const noexcept {
+std::shared_ptr<ITexture> Device::createTexture(
+    const TextureDesc& desc,
+    Result* outResult) const noexcept { // NOLINT(bugprone-exception-escape)
   const auto sanitized = sanitize(desc);
   if (desc.numLayers > 1 && desc.type != TextureType::TwoDArray) {
     Result::setResult(outResult,
@@ -573,6 +575,20 @@ std::unique_ptr<IShaderStages> Device::createShaderStages(const ShaderStagesDesc
 
 const PlatformDevice& Device::getPlatformDevice() const noexcept {
   return platformDevice_;
+}
+
+bool Device::isAppleGpu() const {
+#if IGL_PLATFORM_IOS
+  return true;
+#else
+  if (@available(macOS 10.15, *)) {
+    std::string gpuName = [device_.name UTF8String];
+    return gpuName.find("Apple") != std::string::npos;
+  } else {
+    // Apple Macs didn't exist yet.
+    return false;
+  }
+#endif
 }
 
 bool Device::hasFeature(DeviceFeatures feature) const {

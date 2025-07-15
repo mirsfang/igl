@@ -220,7 +220,7 @@ layout (binding = 1) uniform sampler2D uTex1;
 void main() {
   vec4 t0 = texture(uTex0, 2.0 * uv);
   vec4 t1 = texture(uTex1,  uv);
-  out_FragColor = vec4(color * (t0.rgb + t1.rgb), 1.0);
+  out_FragColor = vec4(2.0 * color * (t0.rgb * t1.rgb), 1.0);
 };
 )";
 }
@@ -384,7 +384,7 @@ void TinyMeshSession::initialize() noexcept {
     fs::path dir = fs::current_path();
     // find IGLU somewhere above our current directory
     // @fb-only
-    const char* contentFolder = "third-party/content/src/";
+    const char* contentFolder = "shell/resources/";
     // @fb-only
     while (dir != fs::current_path().root_path() && !fs::exists(dir / fs::path(contentFolder))) {
       dir = dir.parent_path();
@@ -392,21 +392,18 @@ void TinyMeshSession::initialize() noexcept {
     int32_t texWidth = 0;
     int32_t texHeight = 0;
     int32_t channels = 0;
-    uint8_t* pixels = stbi_load((dir / fs::path(contentFolder) /
-                                 fs::path("bistro/BuildingTextures/wood_polished_01_diff.png"))
-                                    .string()
-                                    .c_str(),
-                                &texWidth,
-                                &texHeight,
-                                &channels,
-                                4);
-    IGL_DEBUG_ASSERT(pixels,
-                     "Cannot load textures. Run `deploy_content.py` before running this app.");
+    uint8_t* pixels =
+        stbi_load((dir / fs::path(contentFolder) / fs::path("images/marble.png")).string().c_str(),
+                  &texWidth,
+                  &texHeight,
+                  &channels,
+                  4);
+    IGL_DEBUG_ASSERT(pixels, "Cannot load texture.");
     const TextureDesc desc = TextureDesc::new2D(igl::TextureFormat::RGBA_SRGB,
                                                 texWidth,
                                                 texHeight,
                                                 TextureDesc::TextureUsageBits::Sampled,
-                                                "wood_polished_01_diff.png");
+                                                "marble.png");
     texture1_ = device_->createTexture(desc, nullptr);
     texture1_->upload(TextureRangeDesc::new2D(0, 0, texWidth, texHeight), pixels);
     stbi_image_free(pixels);
@@ -499,7 +496,7 @@ void TinyMeshSession::update(SurfaceTextures surfaceTextures) noexcept {
     desc.debugName = igl::genNameHandle("Pipeline: mesh");
     desc.fragmentUnitSamplerMap[0] = IGL_NAMEHANDLE("uTex0");
     desc.fragmentUnitSamplerMap[1] = IGL_NAMEHANDLE("uTex1");
-    renderPipelineState_Mesh_ = device_->createRenderPipeline(desc, nullptr);
+    renderPipelineStateMesh_ = device_->createRenderPipeline(desc, nullptr);
   }
 
   framebuffer_->updateDrawable(surfaceTextures.color);
@@ -536,7 +533,7 @@ void TinyMeshSession::update(SurfaceTextures surfaceTextures) noexcept {
   // This will clear the framebuffer
   auto commands = buffer->createRenderCommandEncoder(renderPass_, framebuffer_);
 
-  commands->bindRenderPipelineState(renderPipelineState_Mesh_);
+  commands->bindRenderPipelineState(renderPipelineStateMesh_);
   commands->bindViewport(viewport);
   commands->bindScissorRect(scissor);
   commands->pushDebugGroupLabel("Render Mesh", Color(1, 0, 0));

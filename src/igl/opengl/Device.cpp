@@ -15,7 +15,6 @@
 #include <igl/opengl/ComputePipelineState.h>
 #include <igl/opengl/DepthStencilState.h>
 #include <igl/opengl/DeviceFeatureSet.h>
-#include <igl/opengl/Errors.h>
 #include <igl/opengl/Framebuffer.h>
 #include <igl/opengl/IContext.h>
 #include <igl/opengl/RenderPipelineState.h>
@@ -53,7 +52,7 @@ std::unique_ptr<Buffer> allocateBuffer(BufferDesc::BufferType bufferType,
 }
 
 template<class Ptr>
-Ptr verifyResult(Ptr resource, Result inResult, Result* outResult) {
+Ptr verifyResult(Ptr resource, Result inResult, Result* outResult) noexcept {
   if (inResult.isOk()) {
     Result::setOk(outResult);
   } else {
@@ -118,7 +117,7 @@ void Device::popMarker() {
 
 // Command Queue
 std::shared_ptr<ICommandQueue> Device::createCommandQueue(const CommandQueueDesc& /*desc*/,
-                                                          Result* outResult) {
+                                                          Result* outResult) noexcept {
   // we only use a single command queue on OpenGL
   if (!commandQueue_) {
     commandQueue_ = std::make_shared<CommandQueue>();
@@ -161,12 +160,13 @@ std::shared_ptr<ISamplerState> Device::createSamplerState(const SamplerStateDesc
   return resource;
 }
 
-std::shared_ptr<ITexture> Device::createTexture(const TextureDesc& desc,
-                                                Result* outResult) const noexcept {
+std::shared_ptr<ITexture> Device::createTexture(
+    const TextureDesc& desc,
+    Result* outResult) const noexcept { // NOLINT(bugprone-exception-escape)
   const auto sanitized = sanitize(desc);
 
   std::unique_ptr<Texture> texture;
-#if IGL_DEBUG
+#if IGL_DEBUG_ABORT_ENABLED
   if (sanitized.type == TextureType::TwoD || sanitized.type == TextureType::TwoDArray) {
     size_t textureSizeLimit = 0;
     getFeatureLimits(DeviceFeatureLimits::MaxTextureDimension1D2D, textureSizeLimit);
@@ -274,7 +274,7 @@ std::unique_ptr<IShaderStages> Device::createShaderStages(const ShaderStagesDesc
 }
 
 std::shared_ptr<IFramebuffer> Device::createFramebuffer(const FramebufferDesc& desc,
-                                                        Result* outResult) {
+                                                        Result* outResult) noexcept {
   IGL_DEBUG_ASSERT(deviceFeatureSet_.hasInternalFeature(InternalFeatures::FramebufferObject));
   return getPlatformDevice().createFramebuffer(desc, outResult);
 }

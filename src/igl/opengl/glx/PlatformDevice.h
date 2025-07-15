@@ -20,11 +20,10 @@ class ViewTextureTarget;
 namespace igl::opengl::glx {
 
 class Device;
-class Context;
 
 class PlatformDevice : public opengl::PlatformDevice {
  public:
-  static constexpr igl::PlatformDeviceType Type = igl::PlatformDeviceType::OpenGLx;
+  static constexpr igl::PlatformDeviceType kType = igl::PlatformDeviceType::OpenGLx;
 
   explicit PlatformDevice(Device& owner);
   ~PlatformDevice() override = default;

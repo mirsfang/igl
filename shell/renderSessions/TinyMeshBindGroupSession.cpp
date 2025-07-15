@@ -241,7 +241,7 @@ layout (binding = 1) uniform sampler2D uTex1;
 void main() {
   vec4 t0 = texture(uTex0, 2.0 * uv);
   vec4 t1 = texture(uTex1,  uv);
-  out_FragColor = vec4(color * (t0.rgb + t1.rgb), 1.0);
+  out_FragColor = vec4(2.0 * color * (t0.rgb * t1.rgb), 1.0);
 };
 )";
 }
@@ -402,7 +402,7 @@ void TinyMeshBindGroupSession::initialize() noexcept {
 }
 
 void TinyMeshBindGroupSession::createRenderPipeline() {
-  if (renderPipelineState_Mesh_) {
+  if (renderPipelineStateMesh_) {
     return;
   }
 
@@ -431,7 +431,7 @@ void TinyMeshBindGroupSession::createRenderPipeline() {
   desc.debugName = igl::genNameHandle("Pipeline: mesh");
   desc.fragmentUnitSamplerMap[0] = IGL_NAMEHANDLE("uTex0");
   desc.fragmentUnitSamplerMap[1] = IGL_NAMEHANDLE("uTex1");
-  renderPipelineState_Mesh_ = device_->createRenderPipeline(desc, nullptr);
+  renderPipelineStateMesh_ = device_->createRenderPipeline(desc, nullptr);
 
   {
     const uint32_t texWidth = 256;
@@ -456,7 +456,7 @@ void TinyMeshBindGroupSession::createRenderPipeline() {
     path dir = current_path();
     // find IGLU somewhere above our current directory
     // @fb-only
-    const char* contentFolder = "third-party/content/src/";
+    const char* contentFolder = "shell/resources/";
     // @fb-only
     while (dir != current_path().root_path() && !exists(dir / path(contentFolder))) {
       dir = dir.parent_path();
@@ -464,21 +464,18 @@ void TinyMeshBindGroupSession::createRenderPipeline() {
     int32_t texWidth = 0;
     int32_t texHeight = 0;
     int32_t channels = 0;
-    uint8_t* pixels = stbi_load(
-        (dir / path(contentFolder) / path("bistro/BuildingTextures/wood_polished_01_diff.png"))
-            .string()
-            .c_str(),
-        &texWidth,
-        &texHeight,
-        &channels,
-        4);
-    IGL_DEBUG_ASSERT(pixels,
-                     "Cannot load textures. Run `deploy_content.py` before running this app.");
-    const TextureDesc desc2D = TextureDesc::new2D(igl::TextureFormat::BGRA_SRGB,
+    uint8_t* pixels =
+        stbi_load((dir / path(contentFolder) / path("images/marble.png")).string().c_str(),
+                  &texWidth,
+                  &texHeight,
+                  &channels,
+                  4);
+    IGL_DEBUG_ASSERT(pixels, "Cannot load texture.");
+    const TextureDesc desc2D = TextureDesc::new2D(igl::TextureFormat::RGBA_SRGB,
                                                   texWidth,
                                                   texHeight,
                                                   TextureDesc::TextureUsageBits::Sampled,
-                                                  "wood_polished_01_diff.png");
+                                                  "marble.png");
     texture1_ = device_->createTexture(desc2D, nullptr);
     texture1_->upload(TextureRangeDesc::new2D(0, 0, texWidth, texHeight), pixels);
     stbi_image_free(pixels);
@@ -512,7 +509,7 @@ void TinyMeshBindGroupSession::createRenderPipeline() {
           .debugName = "bindGroupNoTexture1_",
       },
       // as we don't provide all necessary textures, let IGL/Vulkan add dummies where necessary
-      renderPipelineState_Mesh_.get());
+      renderPipelineStateMesh_.get());
 }
 
 std::shared_ptr<ITexture> TinyMeshBindGroupSession::getVulkanNativeDepth() {
@@ -590,7 +587,7 @@ void TinyMeshBindGroupSession::update(SurfaceTextures surfaceTextures) noexcept 
   // This will clear the framebuffer
   auto commands = buffer->createRenderCommandEncoder(renderPass_, framebuffer_);
 
-  commands->bindRenderPipelineState(renderPipelineState_Mesh_);
+  commands->bindRenderPipelineState(renderPipelineStateMesh_);
   commands->bindViewport(viewport);
   commands->bindScissorRect(scissor);
   commands->pushDebugGroupLabel("Render Mesh", Color(1, 0, 0));

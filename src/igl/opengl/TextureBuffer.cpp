@@ -9,7 +9,6 @@
 
 #include <array>
 #include <utility>
-#include <igl/opengl/Errors.h>
 
 namespace igl::opengl {
 
@@ -22,9 +21,7 @@ constexpr std::array<GLenum, 6> kCubeFaceTargets = {GL_TEXTURE_CUBE_MAP_POSITIVE
                                                     GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
                                                     GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
                                                     GL_TEXTURE_CUBE_MAP_NEGATIVE_Z};
-void swapTextureChannelsForFormat(igl::opengl::IContext& context,
-                                  GLuint target,
-                                  igl::TextureFormat iglFormat) {
+void swapTextureChannelsForFormat(IContext& context, GLuint target, TextureFormat iglFormat) {
   if (iglFormat == igl::TextureFormat::A_UNorm8 &&
       context.deviceFeatures().hasInternalRequirement(
           InternalRequirement::SwizzleAlphaTexturesReq)) {

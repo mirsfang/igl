@@ -196,9 +196,7 @@ TEST_F(EnhancedShaderDebuggingStoreTest, InitializeBuffer) {
   EnhancedShaderDebuggingStore store;
   store.initialize(device_);
 
-  if (!device_->getVulkanContext()
-           .features()
-           .vkPhysicalDeviceBufferDeviceAddressFeatures_.bufferDeviceAddress) {
+  if (!device_->getVulkanContext().features().featuresBufferDeviceAddress.bufferDeviceAddress) {
     GTEST_SKIP() << "BufferDeviceAddress not supported";
   }
 
@@ -211,9 +209,7 @@ TEST_F(EnhancedShaderDebuggingStoreTest, createFramebuffer) {
   EnhancedShaderDebuggingStore store;
   store.initialize(device_);
 
-  if (!device_->getVulkanContext()
-           .features()
-           .vkPhysicalDeviceBufferDeviceAddressFeatures_.bufferDeviceAddress) {
+  if (!device_->getVulkanContext().features().featuresBufferDeviceAddress.bufferDeviceAddress) {
     GTEST_SKIP() << "BufferDeviceAddress not supported";
   }
 
@@ -225,9 +221,6 @@ TEST_F(EnhancedShaderDebuggingStoreTest, createFramebuffer) {
 
   auto renderPass = store.renderPassDesc(framebuffer_);
   ASSERT_TRUE(renderPass.colorAttachments.size() == 1);
-
-  store.pipeline(*device_, framebuffer_);
-  // ASSERT_TRUE(pipeline != nullptr);
 }
 
 TEST_F(EnhancedShaderDebuggingStoreTest, DepthStencilState) {
@@ -235,9 +228,7 @@ TEST_F(EnhancedShaderDebuggingStoreTest, DepthStencilState) {
   EnhancedShaderDebuggingStore store;
   store.initialize(device_);
 
-  if (!device_->getVulkanContext()
-           .features()
-           .vkPhysicalDeviceBufferDeviceAddressFeatures_.bufferDeviceAddress) {
+  if (!device_->getVulkanContext().features().featuresBufferDeviceAddress.bufferDeviceAddress) {
     GTEST_SKIP() << "BufferDeviceAddress not supported";
   }
 

@@ -34,7 +34,7 @@ namespace igl::opengl::glx {
 
 using GLXPbuffer = XID;
 using GLXFBConfig = struct __GLXFBConfig*;
-using __GLXextproc = void (*)(void);
+using __GLXextproc = void (*)();
 
 using PFNGLXGETPROCADDRESSPROC = __GLXextproc (*)(const GLubyte* procName);
 
@@ -190,7 +190,7 @@ Context::Context(std::shared_ptr<GLXSharedModule> module,
                  Display* display,
                  GLXDrawable windowHandle,
                  GLXContext contextHandle) :
-  contextOwned_(false),
+
   module_(std::move(module)),
   display_(display),
   windowHandle_(windowHandle),

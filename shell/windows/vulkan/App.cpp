@@ -32,27 +32,34 @@ void VulkanShell::willCreateWindow() noexcept {
 
 std::shared_ptr<Platform> VulkanShell::createPlatform() noexcept {
   igl::vulkan::VulkanContextConfig cfg = igl::vulkan::VulkanContextConfig();
+  cfg.headless = shellParams().isHeadless;
   cfg.requestedSwapChainTextureFormat = sessionConfig().swapchainColorTextureFormat;
 #if defined(_MSC_VER) && !IGL_DEBUG
   cfg.enableValidation = false;
 #endif
-  auto ctx = vulkan::HWDevice::createContext(cfg,
+  auto ctx =
+      vulkan::HWDevice::createContext(cfg,
 #if defined(_WIN32)
-                                             (void*)glfwGetWin32Window(&window())
+                                      window() ? (void*)glfwGetWin32Window(window()) : nullptr
 #else
-                                             (void*)glfwGetX11Window(&window()),
-                                             0,
-                                             nullptr,
-                                             (void*)glfwGetX11Display()
+                                      window() ? (void*)glfwGetX11Window(window()) : nullptr,
+                                      0,
+                                      nullptr,
+                                      (void*)glfwGetX11Display()
 #endif
-  );
+      );
 
   // Prioritize discrete GPUs. If not found, use any that is available.
   std::vector<HWDeviceDesc> devices =
       vulkan::HWDevice::queryDevices(*ctx, HWDeviceQueryDesc(HWDeviceType::DiscreteGpu), nullptr);
   if (devices.empty()) {
+    devices = vulkan::HWDevice::queryDevices(
+        *ctx, HWDeviceQueryDesc(HWDeviceType::IntegratedGpu), nullptr);
+  }
+  if (devices.empty()) {
+    // Lavapipe etc
     devices =
-        vulkan::HWDevice::queryDevices(*ctx, HWDeviceQueryDesc(HWDeviceType::Unknown), nullptr);
+        vulkan::HWDevice::queryDevices(*ctx, HWDeviceQueryDesc(HWDeviceType::SoftwareGpu), nullptr);
   }
   IGL_DEBUG_ASSERT(devices.size() > 0, "Could not find Vulkan device with requested capabilities");
 

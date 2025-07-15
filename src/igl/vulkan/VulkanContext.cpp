@@ -81,7 +81,7 @@ vulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
 
   igl::vulkan::VulkanContext* ctx = static_cast<igl::vulkan::VulkanContext*>(userData);
 
-#if IGL_DEBUG || defined(IGL_FORCE_ENABLE_LOGS)
+#if IGL_LOGGING_ENABLED
   std::array<char, 128> errorName = {};
   int object = 0;
   void* handle = nullptr;
@@ -447,6 +447,8 @@ VulkanContext::VulkanContext(VulkanContextConfig config,
   createInstance(numExtraInstanceExtensions, extraInstanceExtensions);
 
   if (config_.headless) {
+    IGL_DEBUG_ASSERT(features_.has_VK_EXT_headless_surface,
+                     "VK_EXT_headless_surface extension is not supported");
     createHeadlessSurface();
   } else if (window || display) {
     createSurface(window, display);
@@ -472,7 +474,7 @@ VulkanContext::~VulkanContext() {
   dummyStorageBuffer_.reset();
   dummyUniformBuffer_.reset();
 
-#if IGL_DEBUG
+#if IGL_DEBUG_ABORT_ENABLED
   for (const auto& t : pimpl_->bindGroupTexturesPool.objects_) {
     if (t.obj_.dset != VK_NULL_HANDLE) {
       IGL_DEBUG_ABORT("Leaked texture bind group detected! %s", t.obj_.desc.debugName.c_str());
@@ -483,7 +485,7 @@ VulkanContext::~VulkanContext() {
       IGL_DEBUG_ABORT("Leaked buffer bind group detected! %s", t.obj_.desc.debugName.c_str());
     }
   }
-#endif // IGL_DEBUG
+#endif // IGL_DEBUG_ABORT_ENABLED
 
   // BindGroups can hold shared pointers to textures/samplers/buffers. Release them here.
   pimpl_->bindGroupTexturesPool.clear();
@@ -494,14 +496,14 @@ VulkanContext::~VulkanContext() {
 
   pruneTextures();
 
-#if IGL_DEBUG
+#if IGL_LOGGING_ENABLED
   if (textures_.numObjects()) {
     IGL_LOG_ERROR("Leaked %u textures\n", textures_.numObjects());
   }
   if (samplers_.numObjects()) {
     IGL_LOG_ERROR("Leaked %u samplers\n", samplers_.numObjects());
   }
-#endif // IGL_DEBUG
+#endif // IGL_LOGGING_ENABLED
   textures_.clear();
   samplers_.clear();
 
@@ -560,14 +562,14 @@ VulkanContext::~VulkanContext() {
 
   glslang::finalizeCompiler();
 
-#if IGL_DEBUG || defined(IGL_FORCE_ENABLE_LOGS)
+#if IGL_LOGGING_ENABLED
   if (config_.enableExtraLogs) {
     IGL_LOG_INFO("Vulkan graphics pipelines created: %u\n",
                  VulkanPipelineBuilder::getNumPipelinesCreated());
     IGL_LOG_INFO("Vulkan compute pipelines created: %u\n",
                  VulkanComputePipelineBuilder::getNumPipelinesCreated());
   }
-#endif // IGL_DEBUG || defined(IGL_FORCE_ENABLE_LOGS)
+#endif // IGL_LOGGING_ENABLED
 
 #if defined(IGL_CMAKE_BUILD)
   volkFinalize();
@@ -617,7 +619,7 @@ void VulkanContext::createInstance(const size_t numExtraExtensions,
       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
       .pEngineName = "IGL/Vulkan",
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-      .apiVersion = VK_API_VERSION_1_1,
+      .apiVersion = VK_API_VERSION_1_2,
   };
 
   const VkInstanceCreateInfo ci = {
@@ -676,7 +678,7 @@ void VulkanContext::createInstance(const size_t numExtraExtensions,
   }
 #endif // if defined(VK_EXT_debug_utils) && IGL_PLATFORM_WINDOWS
 
-#if IGL_DEBUG || defined(IGL_FORCE_ENABLE_LOGS)
+#if IGL_LOGGING_ENABLED
   if (config_.enableExtraLogs) {
     // log available instance extensions
     IGL_LOG_INFO("Vulkan instance extensions:\n");
@@ -785,9 +787,10 @@ igl::Result VulkanContext::initContext(const HWDeviceDesc& desc,
   // Use the requested features passed to the function (if any) or use the default features
   if (requestedFeatures) {
     features_ = *requestedFeatures;
-  } else {
-    features_.populateWithAvailablePhysicalDeviceFeatures(*this, vkPhysicalDevice_);
   }
+
+  features_.populateWithAvailablePhysicalDeviceFeatures(*this, vkPhysicalDevice_);
+
   // ... and check whether they are available in the physical device (they should be)
   {
     auto featureCheckResult = features_.checkSelectedFeatures(availableFeatures);
@@ -816,7 +819,7 @@ igl::Result VulkanContext::initContext(const HWDeviceDesc& desc,
 
   features_.enumerate(vf_, vkPhysicalDevice_);
 
-#if IGL_DEBUG || defined(IGL_FORCE_ENABLE_LOGS)
+#if IGL_LOGGING_ENABLED
   if (config_.enableExtraLogs) {
     IGL_LOG_INFO("Vulkan physical device extensions:\n");
     // log available physical device extensions
@@ -871,7 +874,7 @@ igl::Result VulkanContext::initContext(const HWDeviceDesc& desc,
                                    qcis.data(),
                                    deviceExtensions.size(),
                                    deviceExtensions.data(),
-                                   &features_.vkPhysicalDeviceFeatures2_,
+                                   &features_.vkPhysicalDeviceFeatures2,
                                    &device));
 
   // Check that device is not null before proceeding
@@ -1593,7 +1596,7 @@ SamplerHandle VulkanContext::createSampler(const VkSamplerCreateInfo& ci,
   VK_ASSERT(vf_.vkCreateSampler(device, &cInfo, nullptr, &sampler.vkSampler));
   VK_ASSERT(ivkSetDebugObjectName(
       &vf_, device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler.vkSampler, debugName));
-  const SamplerHandle handle = samplers_.create(std::move(sampler));
+  const SamplerHandle handle = samplers_.create(static_cast<VulkanSampler&&>(sampler));
 
   samplers_.get(handle)->samplerId = handle.index();
 
@@ -1978,8 +1981,7 @@ VkSamplerYcbcrConversionInfo VulkanContext::getOrCreateYcbcrConversionInfo(VkFor
     return it->second;
   }
 
-  if (!IGL_DEBUG_VERIFY(
-          features_.vkPhysicalDeviceSamplerYcbcrConversionFeatures_.samplerYcbcrConversion)) {
+  if (!IGL_DEBUG_VERIFY(features_.featuresSamplerYcbcrConversion.samplerYcbcrConversion)) {
     IGL_DEBUG_ABORT("Ycbcr samplers are not supported");
     return {};
   }

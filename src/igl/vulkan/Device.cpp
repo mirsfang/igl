@@ -174,9 +174,9 @@ std::shared_ptr<ISamplerState> Device::createSamplerStateInternal(const SamplerS
   return samplerState;
 }
 
-std::shared_ptr<ITexture> Device::createTextureInternal(const TextureDesc& desc,
-                                                        Result* IGL_NULLABLE
-                                                            outResult) const noexcept {
+std::shared_ptr<ITexture> Device::createTextureInternal(
+    const TextureDesc& desc,
+    Result* IGL_NULLABLE outResult) const noexcept { // NOLINT(bugprone-exception-escape)
   IGL_PROFILER_FUNCTION_COLOR(IGL_PROFILER_COLOR_CREATE);
 
   IGL_ENSURE_VULKAN_CONTEXT_THREAD(ctx_);
@@ -196,9 +196,10 @@ std::shared_ptr<ITexture> Device::createTextureInternal(const TextureDesc& desc,
   return res.isOk() ? texture : nullptr;
 }
 
-std::shared_ptr<ITexture> Device::createTextureView(std::shared_ptr<ITexture> texture,
-                                                    const TextureViewDesc& desc,
-                                                    Result* IGL_NULLABLE outResult) const noexcept {
+std::shared_ptr<ITexture> Device::createTextureView(
+    std::shared_ptr<ITexture> texture,
+    const TextureViewDesc& desc,
+    Result* IGL_NULLABLE outResult) const noexcept { // NOLINT(bugprone-exception-escape)
   IGL_PROFILER_FUNCTION_COLOR(IGL_PROFILER_COLOR_CREATE);
 
   IGL_ENSURE_VULKAN_CONTEXT_THREAD(ctx_);
@@ -430,7 +431,7 @@ std::shared_ptr<VulkanShaderModule> Device::createShaderModule(ShaderStage stage
         EnhancedShaderDebuggingStore::recordLineShaderCode(
             ctx_->enhancedShaderDebuggingStore_ != nullptr, ctx_->features_);
 
-    if (ctx_->features_.vkPhysicalDeviceShaderFloat16Int8Features_.shaderFloat16 == VK_TRUE) {
+    if (ctx_->features_.featuresShaderFloat16Int8.shaderFloat16 == VK_TRUE) {
       extraExtensions += "#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require\n";
     }
 
@@ -650,9 +651,9 @@ bool Device::hasFeatureInternal(DeviceFeatures feature) const {
   case DeviceFeatures::BufferDeviceAddress:
     return true;
   case DeviceFeatures::Multiview:
-    return ctx_->features().vkPhysicalDeviceMultiviewFeatures_.multiview == VK_TRUE;
+    return ctx_->features().featuresMultiview.multiview == VK_TRUE;
   case DeviceFeatures::MultiViewMultisample:
-    return ctx_->features().vkPhysicalDeviceMultiviewFeatures_.multiview == VK_TRUE &&
+    return ctx_->features().featuresMultiview.multiview == VK_TRUE &&
            deviceProperties.limits.framebufferColorSampleCounts > VK_SAMPLE_COUNT_1_BIT;
   case DeviceFeatures::BindUniform:
     return false;

@@ -8,12 +8,16 @@
 // @fb-only
 
 #include <cmath>
+#include <cstring>
+
 #include <shell/windows/common/GlfwShell.h>
 
+#include "shell/shared/renderSession/ScreenshotTestRenderSessionHelper.h"
 #include <shell/shared/input/InputDispatcher.h>
 #include <shell/shared/renderSession/AppParams.h>
 #include <shell/shared/renderSession/DefaultRenderSessionFactory.h>
 #include <shell/shared/renderSession/IRenderSessionFactory.h>
+#include <igl/Framebuffer.h>
 
 namespace igl::shell {
 namespace {
@@ -44,12 +48,12 @@ const ShellParams& GlfwShell::shellParams() const noexcept {
   return shellParams_;
 }
 
-GLFWwindow& GlfwShell::window() noexcept {
-  return *window_;
+GLFWwindow* GlfwShell::window() noexcept {
+  return window_.get();
 }
 
-const GLFWwindow& GlfwShell::window() const noexcept {
-  return *window_;
+const GLFWwindow* GlfwShell::window() const noexcept {
+  return window_.get();
 }
 
 Platform& GlfwShell::platform() noexcept {
@@ -69,6 +73,10 @@ const RenderSessionConfig& GlfwShell::sessionConfig() const noexcept {
 }
 
 bool GlfwShell::createWindow() noexcept {
+  if (shellParams_.isHeadless) {
+    return true;
+  }
+
   glfwSetErrorCallback(glfwErrorHandler);
 
   if (!glfwInit()) {
@@ -186,6 +194,37 @@ bool GlfwShell::initialize(int argc,
                            const RenderSessionConfig& suggestedSessionConfig) noexcept {
   igl::shell::Platform::initializeCommandLineArgs(argc, argv);
 
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--headless")) {
+      shellParams_.isHeadless = true;
+    } else if (!strcmp(argv[i], "--screenshot-file")) {
+      if (i + 1 < argc) {
+        shellParams_.screenshotFileName = argv[++i];
+      } else {
+        IGL_LOG_ERROR("Specify a file name for `--screenshot-file <filename>`\n");
+      }
+    } else if (!strcmp(argv[i], "--screenshot-number")) {
+      if (i + 1 < argc) {
+        shellParams_.screenshotNumber = static_cast<uint32_t>(atoi(argv[++i]));
+      } else {
+        IGL_LOG_ERROR("Specify a frame number for `--screenshot-number <value>`\n");
+      }
+    } else if (!strcmp(argv[i], "--viewport-size")) {
+      unsigned int w = 0;
+      unsigned int h = 0;
+      if ((i + 1 < argc) && sscanf(argv[++i], "%ux%u", &w, &h) == 2) {
+        if (w && h) {
+          shellParams_.viewportSize = glm::vec2(w, h);
+          suggestedWindowConfig.width = w;
+          suggestedWindowConfig.height = h;
+          suggestedWindowConfig.windowMode = WindowMode::Window;
+        }
+      } else {
+        IGL_LOG_ERROR("Specify viewport size for `--viewport-size <WxH>`\n");
+      }
+    }
+  }
+
   auto factory = igl::shell::createDefaultRenderSessionFactory();
 
   windowConfig_ =
@@ -220,14 +259,34 @@ bool GlfwShell::initialize(int argc,
 }
 
 void GlfwShell::run() noexcept {
-  while (!glfwWindowShouldClose(window_.get()) && !session_->appParams().exitRequested) {
+  uint64_t frameNumber = 0;
+  while ((!window_ || !glfwWindowShouldClose(window_.get())) &&
+         !session_->appParams().exitRequested) {
     willTick();
     auto surfaceTextures = createSurfaceTextures();
     IGL_DEBUG_ASSERT(surfaceTextures.color != nullptr && surfaceTextures.depth != nullptr);
 
+    std::shared_ptr<ITexture> colorTexture = surfaceTextures.color;
+
     platform_->getInputDispatcher().processEvents();
     session_->update(std::move(surfaceTextures));
-    glfwPollEvents();
+    if (window_) {
+      glfwPollEvents();
+    } else {
+      if (frameNumber == session_->shellParams().screenshotNumber) {
+        IGL_LOG_INFO("\nWe are running headless - breaking after %u frame\n",
+                     (uint32_t)frameNumber);
+        const char* screenshotFileName = session_->shellParams().screenshotFileName;
+        if (screenshotFileName && *screenshotFileName) {
+          SaveFrameBufferToPng(screenshotFileName,
+                               platform_->getDevice().createFramebuffer(
+                                   {.colorAttachments = {{.texture = colorTexture}}}, nullptr),
+                               *platform_);
+        }
+        break;
+      }
+    }
+    frameNumber++;
   }
 }
 
@@ -240,7 +299,9 @@ void GlfwShell::teardown() noexcept {
   platform_.reset();
   window_.reset();
 
-  glfwTerminate();
+  if (!shellParams_.isHeadless) {
+    glfwTerminate();
+  }
 }
 
 } // namespace igl::shell

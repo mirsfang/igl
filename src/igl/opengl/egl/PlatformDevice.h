@@ -27,7 +27,7 @@ class Context;
 
 class PlatformDevice : public opengl::PlatformDevice {
  public:
-  static constexpr igl::PlatformDeviceType Type = igl::PlatformDeviceType::OpenGLEgl;
+  static constexpr igl::PlatformDeviceType kType = igl::PlatformDeviceType::OpenGLEgl;
 
   explicit PlatformDevice(Device& owner);
   ~PlatformDevice() override = default;
@@ -80,8 +80,6 @@ class PlatformDevice : public opengl::PlatformDevice {
 
  private:
   std::shared_ptr<ViewTextureTarget> drawableTexture_;
-
-  std::pair<EGLint, EGLint> getSurfaceDimensions(const Context& context, Result* outResult);
 };
 
 } // namespace egl

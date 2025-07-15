@@ -11,7 +11,6 @@
 #include <cstdio>
 #include <cstring>
 #include <igl/Common.h>
-#include <igl/opengl/Errors.h>
 #include <igl/opengl/Texture.h>
 #include <igl/opengl/ViewTextureTarget.h>
 #include <igl/opengl/macos/Context.h>
@@ -73,7 +72,7 @@ std::shared_ptr<ITexture> PlatformDevice::createTextureFromNativeDepth(Result* o
     return nullptr;
   }
 
-  GLint depthBits;
+  GLint depthBits(~0);
   NSOpenGLPixelFormat* pixelFormat = [[NSOpenGLContext currentContext] pixelFormat];
   if (IGL_DEBUG_VERIFY(pixelFormat)) {
     [pixelFormat getValues:&depthBits forAttribute:NSOpenGLPFADepthSize forVirtualScreen:0];
@@ -87,7 +86,7 @@ std::shared_ptr<ITexture> PlatformDevice::createTextureFromNativeDepth(Result* o
     return nullptr;
   }
 
-  TextureFormat textureFormat;
+  TextureFormat textureFormat(TextureFormat::Invalid);
   switch (depthBits) {
   case 16:
     textureFormat = TextureFormat::Z_UNorm16;
@@ -162,7 +161,7 @@ void PlatformDevice::setNativeDrawableTextureFormat(TextureFormat format, Result
 }
 
 bool PlatformDevice::isType(PlatformDeviceType t) const noexcept {
-  return t == Type || opengl::PlatformDevice::isType(t);
+  return t == kType || opengl::PlatformDevice::isType(t);
 }
 
 } // namespace igl::opengl::macos
